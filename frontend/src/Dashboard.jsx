@@ -7,23 +7,39 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [docs, setDocs] = useState([]);
 
+  const token = localStorage.getItem("token"); // JWT token from login
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!token) {
+      navigate("/login");
+    }
+  }, [token, navigate]);
+
   // Load saved documents from backend
   useEffect(() => {
+    if (!token) return;
+
     axios
-      .get("http://localhost:4000/api/docs")
+      .get("http://localhost:4000/api/docs", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       .then((res) => setDocs(res.data))
       .catch((err) => console.error(err));
-  }, []);
+  }, [token]);
 
   // Create a new document in backend
   const createNewDoc = async () => {
-    try {
-      const res = await axios.post("http://localhost:4000/api/docs", {
-        content: "",
-      });
-      const newDoc = res.data;
+    if (!token) return;
 
-      setDocs((prev) => [...prev, newDoc]); // add immediately to list
+    try {
+      const res = await axios.post(
+        "http://localhost:4000/api/docs",
+        { content: "" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const newDoc = res.data;
+      setDocs((prev) => [...prev, newDoc]); // Add immediately to list
       navigate(`/editor/${newDoc._id}`);
     } catch (err) {
       console.error("Error creating doc:", err);

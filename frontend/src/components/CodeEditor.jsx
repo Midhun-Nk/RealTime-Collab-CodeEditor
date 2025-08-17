@@ -1,30 +1,46 @@
 import React, { useEffect, useRef, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { debounce } from "lodash";
 
 export default function CodeEditor() {
   const { docId } = useParams();
+  const navigate = useNavigate();
   const [code, setCode] = useState("// Loading...");
   const ws = useRef(null);
 
+  const token = localStorage.getItem("token"); // JWT token
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!token) {
+      navigate("/login");
+    }
+  }, [token, navigate]);
+
   // Fetch document when opened
   useEffect(() => {
+    if (!token) return;
+
     async function fetchDocument() {
       try {
-        const res = await axios.get(`http://localhost:5000/api/docs/${docId}`);
+        const res = await axios.get(`http://localhost:5000/api/docs/${docId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (res.data?.content) setCode(res.data.content);
       } catch (err) {
         console.error("Error fetching document:", err);
       }
     }
     fetchDocument();
-  }, [docId]);
+  }, [docId, token]);
 
   // WebSocket for realtime sync
   useEffect(() => {
+    if (!token) return;
+
     ws.current = new WebSocket("ws://localhost:4000");
 
     ws.current.onopen = () => {
@@ -38,14 +54,18 @@ export default function CodeEditor() {
     };
 
     return () => ws.current.close();
-  }, [docId, code]);
+  }, [docId, code, token]);
 
   // Debounced save function
   const saveDocument = debounce(async (value) => {
+    if (!token) return;
+
     try {
-      await axios.put(`http://localhost:5000/api/docs/${docId}`, {
-        content: value,
-      });
+      await axios.put(
+        `http://localhost:5000/api/docs/${docId}`,
+        { content: value },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
     } catch (err) {
       console.error("Error saving document:", err);
     }
