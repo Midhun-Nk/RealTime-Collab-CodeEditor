@@ -5,30 +5,68 @@ const { authMiddleware } = require("./auth");
 
 const router = express.Router();
 
-// Get documents of logged-in user
+// Get all user documents
 router.get("/", authMiddleware, async (req, res) => {
-  const docs = await Document.find({ owner: req.user.id }).sort({
-    createdAt: -1,
-  });
-  res.json(docs);
+  try {
+    const docs = await Document.find({ owner: req.user.id }).sort({
+      createdAt: -1,
+    });
+    res.json(docs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Create new document for logged-in user
+// Create new document with title
 router.post("/", authMiddleware, async (req, res) => {
-  const newDoc = new Document({
-    docId: new mongoose.Types.ObjectId().toString(),
-    content: req.body.content || "// Start coding here...",
-    owner: req.user.id,
-  });
-  await newDoc.save();
-  res.json(newDoc);
+  try {
+    const { title, content } = req.body;
+    const newDoc = new Document({
+      docId: new mongoose.Types.ObjectId().toString(),
+      title: title || "Untitled Document",
+      content: content || "// Start coding here...",
+      owner: req.user.id,
+    });
+    await newDoc.save();
+    res.json(newDoc);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Get document by docId (anyone with link can open)
-router.get("/:docId", async (req, res) => {
-  const doc = await Document.findOne({ docId: req.params.docId });
-  if (!doc) return res.status(404).json({ message: "Document not found" });
-  res.json(doc);
+// Get single document by docId
+router.get("/:docId", authMiddleware, async (req, res) => {
+  try {
+    const doc = await Document.findOne({
+      docId: req.params.docId,
+      owner: req.user.id, // ensure user owns this doc
+    });
+    if (!doc) return res.status(404).json({ message: "Document not found" });
+    res.json(doc);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update document title/content
+// Update document title/content
+router.put("/:docId", authMiddleware, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+
+    // Find the document by docId and owner
+    const doc = await Document.findOneAndUpdate(
+      { docId: req.params.docId, owner: req.user.id },
+      { title, content },
+      { new: true }
+    );
+
+    if (!doc) return res.status(404).json({ message: "Document not found" });
+
+    res.json(doc);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

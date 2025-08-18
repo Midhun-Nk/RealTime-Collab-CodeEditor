@@ -1,4 +1,3 @@
-// Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -6,20 +5,16 @@ import axios from "axios";
 export default function Dashboard() {
   const navigate = useNavigate();
   const [docs, setDocs] = useState([]);
-
-  const token = localStorage.getItem("token"); // JWT token from login
+  const token = localStorage.getItem("token");
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-    }
+    if (!token) navigate("/login");
   }, [token, navigate]);
 
-  // Load saved documents from backend
+  // Load user documents
   useEffect(() => {
     if (!token) return;
-
     axios
       .get("http://localhost:4000/api/docs", {
         headers: { Authorization: `Bearer ${token}` },
@@ -28,54 +23,64 @@ export default function Dashboard() {
       .catch((err) => console.error(err));
   }, [token]);
 
-  // Create a new document in backend
   const createNewDoc = async () => {
-    if (!token) return;
-
     try {
       const res = await axios.post(
-        "http://localhost:4000/api/docs",
-        { content: "" },
+        "http://localhost:4000/api/docs", // make sure this is the correct port
+        { title: "Untitled Document", content: "" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const newDoc = res.data;
-      setDocs((prev) => [...prev, newDoc]); // Add immediately to list
-      navigate(`/editor/${newDoc._id}`);
+      setDocs((prev) => [...prev, newDoc]);
+      navigate(`/editor/${newDoc.docId}`);
     } catch (err) {
       console.error("Error creating doc:", err);
     }
   };
 
-  // Open existing doc
-  const openDoc = (id) => {
-    navigate(`/editor/${id}`);
+  const openDoc = (docId) => {
+    navigate(`/editor/${docId}`);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <button
+          onClick={handleLogout}
+          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+        >
+          Logout
+        </button>
+      </div>
 
-      {/* Button to create new doc */}
       <button
         onClick={createNewDoc}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg mb-6"
+        className="px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg mb-6 hover:bg-blue-700"
       >
-        Create New Code Editor
+        + Create New Code Editor
       </button>
 
-      {/* List of saved documents */}
-      <h2 className="text-xl font-semibold mb-2">Your Documents</h2>
+      <h2 className="text-2xl font-semibold mb-3">Your Documents</h2>
       {docs.length === 0 ? (
-        <p className="text-gray-500">No documents yet</p>
+        <p className="text-gray-500">No documents yet. Create one!</p>
       ) : (
         <ul className="space-y-2">
           {docs.map((doc) => (
             <li
-              key={doc._id}
-              className="p-3 border rounded-lg cursor-pointer hover:bg-gray-100"
-              onClick={() => openDoc(doc._id)}
+              key={doc.docId}
+              className="p-3 border rounded-lg cursor-pointer hover:bg-gray-100 flex justify-between items-center"
+              onClick={() => openDoc(doc.docId)}
             >
-              Document: {doc._id}
+              <span>{doc.title}</span>
+              <span className="text-sm text-gray-400">
+                {new Date(doc.createdAt).toLocaleDateString()}
+              </span>
             </li>
           ))}
         </ul>
