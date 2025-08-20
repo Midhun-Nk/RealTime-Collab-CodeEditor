@@ -7,12 +7,10 @@ export default function Dashboard() {
   const [docs, setDocs] = useState([]);
   const token = localStorage.getItem("token");
 
-  // Redirect to login if not authenticated
   useEffect(() => {
     if (!token) navigate("/login");
   }, [token, navigate]);
 
-  // Load user documents
   useEffect(() => {
     if (!token) return;
     axios
@@ -26,7 +24,7 @@ export default function Dashboard() {
   const createNewDoc = async () => {
     try {
       const res = await axios.post(
-        "http://localhost:4000/api/docs", // make sure this is the correct port
+        "http://localhost:4000/api/docs",
         { title: "Untitled Document", content: "" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -48,42 +46,57 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+    <div className="w-screen min-h-screen bg-gray-900 text-gray-100 p-6 flex flex-col">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Welcome Back!</h1>
+          <p className="text-gray-400">
+            Here are your code documents. Start coding or create a new editor.
+          </p>
+        </div>
         <button
           onClick={handleLogout}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+          className="mt-4 sm:mt-0 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-colors"
         >
           Logout
         </button>
       </div>
 
-      <button
-        onClick={createNewDoc}
-        className="px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg mb-6 hover:bg-blue-700"
-      >
-        + Create New Code Editor
-      </button>
+      {/* Create New Button */}
+      <div className="mb-8">
+        <button
+          onClick={createNewDoc}
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all transform hover:-translate-y-1 hover:scale-105"
+        >
+          + Create New Code Editor
+        </button>
+      </div>
 
-      <h2 className="text-2xl font-semibold mb-3">Your Documents</h2>
+      {/* Documents Section */}
+      <h2 className="text-2xl font-semibold mb-4">Your Documents</h2>
       {docs.length === 0 ? (
-        <p className="text-gray-500">No documents yet. Create one!</p>
+        <p className="text-gray-400">
+          No documents yet. Click "Create New Code Editor" to get started!
+        </p>
       ) : (
-        <ul className="space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {docs.map((doc) => (
-            <li
+            <div
               key={doc.docId}
-              className="p-3 border rounded-lg cursor-pointer hover:bg-gray-100 flex justify-between items-center"
               onClick={() => openDoc(doc.docId)}
+              className="bg-gray-800 p-4 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transform hover:-translate-y-1 transition-all"
             >
-              <span>{doc.title}</span>
-              <span className="text-sm text-gray-400">
-                {new Date(doc.createdAt).toLocaleDateString()}
-              </span>
-            </li>
+              <h3 className="text-lg font-semibold mb-2">{doc.title}</h3>
+              <p className="text-gray-400 text-sm">
+                Created on: {new Date(doc.createdAt).toLocaleDateString()}
+              </p>
+              <p className="mt-2 text-gray-300 text-sm line-clamp-2">
+                {doc.content || "No content yet. Click to start coding!"}
+              </p>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

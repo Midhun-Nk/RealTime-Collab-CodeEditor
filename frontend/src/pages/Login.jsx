@@ -7,6 +7,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
+  // Normal login with username/password
   const handleLogin = async () => {
     try {
       const res = await axios.post("http://localhost:4000/api/auth/login", {
@@ -21,6 +22,16 @@ export default function Login() {
     }
   };
 
+  // Google login redirect
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:4000/api/auth/google";
+  };
+
+  // GitHub login redirect
+  const handleGithubLogin = () => {
+    window.location.href = "http://localhost:4000/api/auth/github";
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-lg">
@@ -28,6 +39,7 @@ export default function Login() {
           Login
         </h2>
 
+        {/* Username / Password login */}
         <input
           className="w-full mb-4 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
           placeholder="Username"
@@ -48,6 +60,28 @@ export default function Login() {
           className="w-full py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition duration-200"
         >
           Login
+        </button>
+
+        {/* Divider */}
+        <div className="flex items-center my-6">
+          <hr className="flex-grow border-gray-300" />
+          <span className="px-3 text-gray-500 text-sm">OR</span>
+          <hr className="flex-grow border-gray-300" />
+        </div>
+
+        {/* Social Logins */}
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full py-2 mb-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition duration-200"
+        >
+          Continue with Google
+        </button>
+
+        <button
+          onClick={handleGithubLogin}
+          className="w-full py-2 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-900 transition duration-200"
+        >
+          Continue with GitHub
         </button>
 
         <p className="mt-4 text-center text-gray-500 text-sm">
