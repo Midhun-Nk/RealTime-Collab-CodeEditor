@@ -7,18 +7,27 @@ export default function Dashboard() {
   const [docs, setDocs] = useState([]);
   const token = localStorage.getItem("token");
 
+  // Redirect to login if no token
   useEffect(() => {
     if (!token) navigate("/login");
   }, [token, navigate]);
 
+  // Fetch documents
   useEffect(() => {
     if (!token) return;
-    axios
-      .get("http://localhost:4000/api/docs", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => setDocs(res.data))
-      .catch((err) => console.error(err));
+
+    const fetchDocs = async () => {
+      try {
+        const res = await axios.get("http://localhost:4000/api/docs", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setDocs(res.data);
+      } catch (err) {
+        console.error("Error fetching docs:", err);
+      }
+    };
+
+    fetchDocs();
   }, [token]);
 
   const createNewDoc = async () => {
@@ -28,17 +37,14 @@ export default function Dashboard() {
         { title: "Untitled Document", content: "" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const newDoc = res.data;
-      setDocs((prev) => [...prev, newDoc]);
-      navigate(`/editor/${newDoc.docId}`);
+      setDocs((prev) => [...prev, res.data]);
+      navigate(`/editor/${res.data.docId}`);
     } catch (err) {
       console.error("Error creating doc:", err);
     }
   };
 
-  const openDoc = (docId) => {
-    navigate(`/editor/${docId}`);
-  };
+  const openDoc = (docId) => navigate(`/editor/${docId}`);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -46,58 +52,76 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="w-screen min-h-screen bg-gray-900 text-gray-100 p-6 flex flex-col">
+    <div className="w-screen min-h-screen bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-gray-100 p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Welcome Back!</h1>
+          <h1 className="text-4xl font-bold mb-2 text-white">Welcome Back!</h1>
           <p className="text-gray-400">
-            Here are your code documents. Start coding or create a new editor.
+            Manage your code documents efficiently. Start coding or create a new
+            editor.
           </p>
         </div>
         <button
           onClick={handleLogout}
-          className="mt-4 sm:mt-0 px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-colors"
+          className="mt-4 sm:mt-0 px-5 py-2 bg-red-500 text-white rounded-lg shadow-lg hover:bg-red-600 transition-all"
         >
           Logout
         </button>
-      </div>
+      </header>
 
-      {/* Create New Button */}
-      <div className="mb-8">
+      {/* Quick Actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <button
           onClick={createNewDoc}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all transform hover:-translate-y-1 hover:scale-105"
+          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-lg transform hover:-translate-y-1 hover:scale-105 transition-all"
         >
           + Create New Code Editor
         </button>
+
+        <div className="flex gap-4 flex-wrap">
+          <div className="bg-gray-800 p-4 rounded-lg shadow-lg w-40 text-center hover:bg-gray-700 transition-all">
+            <h3 className="text-xl font-bold">{docs.length}</h3>
+            <p className="text-gray-400 text-sm mt-1">Total Documents</p>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg shadow-lg w-40 text-center hover:bg-gray-700 transition-all">
+            <h3 className="text-xl font-bold">
+              {docs.filter((doc) => doc.content).length}
+            </h3>
+            <p className="text-gray-400 text-sm mt-1">Documents with Content</p>
+          </div>
+        </div>
       </div>
 
       {/* Documents Section */}
-      <h2 className="text-2xl font-semibold mb-4">Your Documents</h2>
-      {docs.length === 0 ? (
-        <p className="text-gray-400">
-          No documents yet. Click "Create New Code Editor" to get started!
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {docs.map((doc) => (
-            <div
-              key={doc.docId}
-              onClick={() => openDoc(doc.docId)}
-              className="bg-gray-800 p-4 rounded-lg shadow-lg cursor-pointer hover:bg-gray-700 transform hover:-translate-y-1 transition-all"
-            >
-              <h3 className="text-lg font-semibold mb-2">{doc.title}</h3>
-              <p className="text-gray-400 text-sm">
-                Created on: {new Date(doc.createdAt).toLocaleDateString()}
-              </p>
-              <p className="mt-2 text-gray-300 text-sm line-clamp-2">
-                {doc.content || "No content yet. Click to start coding!"}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+      <section>
+        <h2 className="text-2xl font-semibold mb-4">Your Documents</h2>
+        {docs.length === 0 ? (
+          <p className="text-gray-400">
+            No documents yet. Click "Create New Code Editor" to get started!
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {docs.map((doc) => (
+              <div
+                key={doc.docId}
+                onClick={() => openDoc(doc.docId)}
+                className="bg-gray-800 p-5 rounded-xl shadow-lg cursor-pointer hover:bg-gray-700 transform hover:-translate-y-1 hover:scale-105 transition-all"
+              >
+                <h3 className="text-lg font-bold mb-2 text-white">
+                  {doc.title}
+                </h3>
+                <p className="text-gray-400 text-sm mb-2">
+                  Created on: {new Date(doc.createdAt).toLocaleDateString()}
+                </p>
+                <p className="text-gray-300 text-sm line-clamp-3">
+                  {doc.content || "No content yet. Click to start coding!"}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

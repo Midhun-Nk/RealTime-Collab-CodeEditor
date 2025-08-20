@@ -1,3 +1,4 @@
+// Login.jsx (simplified)
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -7,7 +8,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  // Normal login with username/password
   const handleLogin = async () => {
     try {
       const res = await axios.post("http://localhost:4000/api/auth/login", {
@@ -15,19 +15,17 @@ export default function Login() {
         password,
       });
       localStorage.setItem("token", res.data.token);
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error(err);
       alert("Login failed");
     }
   };
 
-  // Google login redirect
   const handleGoogleLogin = () => {
     window.location.href = "http://localhost:4000/api/auth/google";
   };
 
-  // GitHub login redirect
   const handleGithubLogin = () => {
     window.location.href = "http://localhost:4000/api/auth/github";
   };
@@ -39,14 +37,12 @@ export default function Login() {
           Login
         </h2>
 
-        {/* Username / Password login */}
         <input
           className="w-full mb-4 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
-
         <input
           type="password"
           className="w-full mb-6 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -62,14 +58,12 @@ export default function Login() {
           Login
         </button>
 
-        {/* Divider */}
         <div className="flex items-center my-6">
           <hr className="flex-grow border-gray-300" />
           <span className="px-3 text-gray-500 text-sm">OR</span>
           <hr className="flex-grow border-gray-300" />
         </div>
 
-        {/* Social Logins */}
         <button
           onClick={handleGoogleLogin}
           className="w-full py-2 mb-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition duration-200"
