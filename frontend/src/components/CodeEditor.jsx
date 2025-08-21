@@ -35,6 +35,7 @@ export default function CodeEditor() {
   const [remoteCursors, setRemoteCursors] = useState({});
   const [myName, setMyName] = useState("Guest");
   const [isOwner, setIsOwner] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const codeRef = useRef(code);
   const titleRef = useRef(title);
@@ -133,6 +134,13 @@ export default function CodeEditor() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showAccess]);
+  const [showCopied, setShowCopied] = useState(false);
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShowCopied(true);
+    setTimeout(() => setShowCopied(false), 2000); // hide after 2 seconds
+  };
 
   // -------------------------
   // WebSocket setup
@@ -540,14 +548,29 @@ export default function CodeEditor() {
             {running ? "Running..." : "Run Code"}
           </button>
 
-          {isOwner && (
+          <div className="flex gap-2 ml-auto relative">
             <button
-              onClick={() => setShowAccess(!showAccess)}
-              className="px-3 py-2 bg-gray-700 rounded ml-auto"
+              onClick={copyUrl}
+              className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-white relative"
             >
-              Manage Access
+              Share URL
             </button>
-          )}
+
+            {showCopied && (
+              <div className="absolute top-0 right-0 -translate-y-full px-3 py-1 bg-black text-white rounded shadow-lg text-sm animate-fadeInOut">
+                Link copied!
+              </div>
+            )}
+
+            {isOwner && (
+              <button
+                onClick={() => setShowAccess(!showAccess)}
+                className="px-3 py-2 bg-gray-700 rounded text-white"
+              >
+                Manage Access
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 rounded-lg overflow-hidden border border-gray-700">
