@@ -106,18 +106,6 @@ router.get(
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
-router.get(
-  "/google/callback",
-  passport.authenticate("google", { session: false }),
-  (req, res) => {
-    const token = jwt.sign({ id: req.user._id }, JWT_SECRET, {
-      expiresIn: "1d",
-    });
-    // Redirect to frontend dashboard with token
-    res.redirect(`http://localhost:5173/dashboard?token=${token}`);
-  }
-);
-
 //-----------------------------------
 // GitHub Routes
 //-----------------------------------
@@ -126,6 +114,22 @@ router.get(
   passport.authenticate("github", { scope: ["user:email"] })
 );
 
+// Google callback
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { session: false }),
+  (req, res) => {
+    const token = jwt.sign({ id: req.user._id }, JWT_SECRET, {
+      expiresIn: "1d",
+    });
+    const username = encodeURIComponent(req.user.username); // <-- add this
+    res.redirect(
+      `http://localhost:5173/oauth/callback?token=${token}&username=${username}`
+    );
+  }
+);
+
+// GitHub callback
 router.get(
   "/github/callback",
   passport.authenticate("github", { session: false }),
@@ -133,7 +137,10 @@ router.get(
     const token = jwt.sign({ id: req.user._id }, JWT_SECRET, {
       expiresIn: "1d",
     });
-    res.redirect(`http://localhost:5173/dashboard?token=${token}`);
+    const username = encodeURIComponent(req.user.username); // <-- add this
+    res.redirect(
+      `http://localhost:5173/oauth/callback?token=${token}&username=${username}`
+    );
   }
 );
 

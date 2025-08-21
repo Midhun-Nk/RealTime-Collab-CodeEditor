@@ -11,6 +11,7 @@ import Dashboard from "./Dashboard";
 import CodeEditor from "./components/CodeEditor";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import OAuthCallback from "./pages/OAuthCallback";
 
 // Protected route
 function PrivateRoute({ children }) {
@@ -18,26 +19,25 @@ function PrivateRoute({ children }) {
   return token ? children : <Navigate to="/login" />;
 }
 
-// Wrapper to handle OAuth token from URL before rendering routes
+// Wrapper to handle OAuth token from URL (except /oauth/callback)
 function OAuthHandler({ children }) {
   const location = useLocation();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const token = params.get("token");
+    if (!location.pathname.startsWith("/oauth/callback")) {
+      const params = new URLSearchParams(location.search);
+      const token = params.get("token");
 
-    if (token) {
-      localStorage.setItem("token", token);
-
-      // Clean URL
-      window.history.replaceState({}, document.title, location.pathname);
+      if (token) {
+        localStorage.setItem("token", token);
+        window.history.replaceState({}, document.title, location.pathname);
+      }
     }
-
-    setReady(true); // Signal that routes can render now
+    setReady(true);
   }, [location]);
 
-  if (!ready) return null; // Don’t render routes until token is handled
+  if (!ready) return null;
   return children;
 }
 
@@ -48,6 +48,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/oauth/callback" element={<OAuthCallback />} />
 
           <Route
             path="/dashboard"

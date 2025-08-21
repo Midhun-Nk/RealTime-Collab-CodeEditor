@@ -1,4 +1,3 @@
-// Login.jsx (simplified)
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -8,13 +7,17 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
+  // Local login
   const handleLogin = async () => {
     try {
       const res = await axios.post("http://localhost:4000/api/auth/login", {
         username,
         password,
       });
+
       localStorage.setItem("token", res.data.token);
+      localStorage.setItem("username", res.data.username);
+
       navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error(err);
@@ -22,6 +25,7 @@ export default function Login() {
     }
   };
 
+  // OAuth login
   const handleGoogleLogin = () => {
     window.location.href = "http://localhost:4000/api/auth/google";
   };

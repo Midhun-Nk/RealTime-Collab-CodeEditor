@@ -45,7 +45,7 @@ export default function CodeEditor() {
     "#" + Math.floor(Math.random() * 16777215).toString(16)
   );
   const myName = useRef(
-    localStorage.getItem("name") || `Guest-${myId.current.slice(0, 4)}`
+    localStorage.getItem("username") || `Guest-${myId.current.slice(0, 4)}`
   );
 
   // -------------------------
