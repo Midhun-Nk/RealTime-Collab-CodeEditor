@@ -12,23 +12,26 @@ import axios from "axios";
 import { debounce } from "lodash";
 import { EditorView, Decoration, WidgetType } from "@codemirror/view";
 import { StateField, StateEffect } from "@codemirror/state";
+import ManageAccess from "../components/ManageAccess";
 
 export default function CodeEditor() {
   const { docId } = useParams();
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
+  // -------------------------
+  // State
+  // -------------------------
+  const [permission, setPermission] = useState(null); // null = loading, "read", "edit", "none"
+  const [showAccess, setShowAccess] = useState(false);
   const [code, setCode] = useState("// Loading...");
   const [title, setTitle] = useState("Untitled Document");
   const [language, setLanguage] = useState("javascript");
   const [output, setOutput] = useState("");
   const [running, setRunning] = useState(false);
   const [loading, setLoading] = useState(true);
-
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
-
-  // remoteCursors: { [userId]: { pos:number, name:string, color:string, ts:number } }
   const [remoteCursors, setRemoteCursors] = useState({});
 
   const codeRef = useRef(code);
@@ -45,6 +48,9 @@ export default function CodeEditor() {
     localStorage.getItem("name") || `Guest-${myId.current.slice(0, 4)}`
   );
 
+  // -------------------------
+  // Redirect if not logged in
+  // -------------------------
   useEffect(() => {
     if (!token) navigate("/login");
   }, [token, navigate]);
@@ -56,11 +62,34 @@ export default function CodeEditor() {
     titleRef.current = title;
   }, [title]);
 
-  // ---------------------------
-  // Fetch initial document
-  // ---------------------------
+  // -------------------------
+  // Fetch user permission
+  // -------------------------
   useEffect(() => {
     if (!token) return;
+
+    const fetchPermission = async () => {
+      try {
+        const res = await axios.get(
+          `http://localhost:4000/api/access/${docId}/my-permission`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setPermission(res.data.permission); // "read", "edit", or "none"
+      } catch (err) {
+        console.error(err);
+        setPermission("none");
+      }
+    };
+
+    fetchPermission();
+  }, [docId, token]);
+
+  // -------------------------
+  // Fetch document content
+  // -------------------------
+  useEffect(() => {
+    if (!token || permission === "none") return;
+
     axios
       .get(`http://localhost:4000/api/docs/${docId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -72,13 +101,14 @@ export default function CodeEditor() {
         }
       })
       .finally(() => setLoading(false));
-  }, [docId, token]);
+  }, [docId, token, permission]);
 
-  // ---------------------------
+  // -------------------------
   // WebSocket setup
-  // ---------------------------
+  // -------------------------
   useEffect(() => {
-    if (!token) return;
+    if (!token || permission === "none") return;
+
     ws.current = new WebSocket("ws://localhost:4000");
 
     ws.current.onopen = () => {
@@ -101,12 +131,8 @@ export default function CodeEditor() {
       if (msg.type === "title-change" && msg.title !== titleRef.current)
         setTitle(msg.title);
 
-      // Chat messages (support both saved docs and local echoes)
-      if (msg.type === "chat") {
-        setMessages((prev) => [...prev, msg.message]);
-      }
+      if (msg.type === "chat") setMessages((prev) => [...prev, msg.message]);
 
-      // Remote cursor updates
       if (msg.type === "cursor" && msg.userId !== myId.current) {
         setRemoteCursors((prev) => ({
           ...prev,
@@ -124,16 +150,18 @@ export default function CodeEditor() {
     ws.current.onclose = () => console.log("WS disconnected");
 
     return () => ws.current?.close();
-  }, [docId, token]);
+  }, [docId, token, permission]);
 
-  // Prune stale cursors (e.g., user closed tab)
+  // -------------------------
+  // Prune stale cursors
+  // -------------------------
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       setRemoteCursors((prev) => {
         const next = {};
         Object.entries(prev).forEach(([uid, c]) => {
-          if (now - (c.ts || 0) < 8000) next[uid] = c; // keep if updated in last 8s
+          if (now - (c.ts || 0) < 8000) next[uid] = c;
         });
         return next;
       });
@@ -141,18 +169,17 @@ export default function CodeEditor() {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ---------------------------
+  // -------------------------
   // Save document/title
-  // ---------------------------
+  // -------------------------
   const saveDocument = useMemo(
     () =>
       debounce(async (value) => {
-        if (!token) return;
+        if (!token || permission !== "edit") return;
         try {
           await axios.put(
             `http://localhost:4000/api/docs/${docId}`,
@@ -163,13 +190,13 @@ export default function CodeEditor() {
           console.error(err);
         }
       }, 800),
-    [docId, token]
+    [docId, token, permission]
   );
 
   const saveTitle = useMemo(
     () =>
       debounce(async (newTitle) => {
-        if (!token) return;
+        if (!token || permission !== "edit") return;
         try {
           await axios.put(
             `http://localhost:4000/api/docs/${docId}`,
@@ -183,12 +210,12 @@ export default function CodeEditor() {
           console.error(err);
         }
       }, 400),
-    [docId, token]
+    [docId, token, permission]
   );
 
-  // ---------------------------
+  // -------------------------
   // Execute code
-  // ---------------------------
+  // -------------------------
   const runCode = async () => {
     if (!code.trim()) return;
     setRunning(true);
@@ -207,9 +234,9 @@ export default function CodeEditor() {
     setRunning(false);
   };
 
-  // ---------------------------
+  // -------------------------
   // Chat
-  // ---------------------------
+  // -------------------------
   const sendMessage = () => {
     if (!chatInput.trim()) return;
     const message = { user: myName.current, text: chatInput };
@@ -217,15 +244,14 @@ export default function CodeEditor() {
     setChatInput("");
   };
 
-  // ---------------------------
-  // Cursor decorations (improved)
-  // ---------------------------
+  // -------------------------
+  // Cursor decorations
+  // -------------------------
   const setRemoteCursorsEffect = useMemo(() => StateEffect.define(), []);
 
-  // tiny helper to convert #RRGGBB to rgba with alpha
   const toRGBA = (hex, alpha = 0.75) => {
     if (!hex || !/^#?[0-9a-f]{6}$/i.test(hex))
-      return `rgba(34,211,238,${alpha})`; // fallback
+      return `rgba(34,211,238,${alpha})`;
     const h = hex.replace("#", "");
     const r = parseInt(h.slice(0, 2), 16);
     const g = parseInt(h.slice(2, 4), 16);
@@ -233,14 +259,13 @@ export default function CodeEditor() {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
-  // Base theme so the widget positions & opacity behave consistently
   const remoteCursorTheme = useMemo(
     () =>
       EditorView.baseTheme({
         ".cm-remote-cursor": {
           position: "relative",
           display: "inline-block",
-          width: "0px", // zero-width so it overlays text instead of shifting it
+          width: "0px",
           height: "1.2em",
           verticalAlign: "text-top",
           pointerEvents: "none",
@@ -264,7 +289,7 @@ export default function CodeEditor() {
           whiteSpace: "nowrap",
           color: "white",
           pointerEvents: "none",
-          opacity: 0.75, // << semi-transparent username tag
+          opacity: 0.75,
           boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
         },
       }),
@@ -279,14 +304,11 @@ export default function CodeEditor() {
       update(deco, tr) {
         for (const e of tr.effects) {
           if (e.is(setRemoteCursorsEffect)) {
-            const cursors = e.value; // { userId: { pos, name, color, ts } }
+            const cursors = e.value;
             const widgets = [];
-
             Object.values(cursors).forEach((cursor) => {
               if (typeof cursor?.pos !== "number") return;
-
               const color = cursor.color || "#22d3ee";
-
               widgets.push(
                 Decoration.widget({
                   widget: new (class extends WidgetType {
@@ -302,8 +324,7 @@ export default function CodeEditor() {
                       const label = document.createElement("div");
                       label.className = "cm-remote-label";
                       label.textContent = cursor.name || "User";
-                      label.style.background = toRGBA(color, 0.72); // a touch transparent
-                      // text shadow for readability on light backgrounds within oneDark
+                      label.style.background = toRGBA(color, 0.72);
                       label.style.textShadow = "0 1px 1px rgba(0,0,0,0.25)";
                       root.appendChild(label);
 
@@ -314,7 +335,6 @@ export default function CodeEditor() {
                 }).range(cursor.pos)
               );
             });
-
             return Decoration.set(widgets, true);
           }
         }
@@ -324,7 +344,6 @@ export default function CodeEditor() {
     });
   }, [setRemoteCursorsEffect]);
 
-  // Push decorations whenever remoteCursors changes
   useEffect(() => {
     if (editorViewRef.current) {
       editorViewRef.current.dispatch({
@@ -333,7 +352,6 @@ export default function CodeEditor() {
     }
   }, [remoteCursors, setRemoteCursorsEffect]);
 
-  // Throttled local cursor broadcasts
   const sendCursorThrottled = useMemo(
     () =>
       debounce((pos) => {
@@ -343,7 +361,7 @@ export default function CodeEditor() {
             docId,
             userId: myId.current,
             pos,
-            name: myName.current, // will be shown above the caret
+            name: myName.current,
             color: myColor.current,
           })
         );
@@ -353,13 +371,12 @@ export default function CodeEditor() {
 
   useEffect(() => () => sendCursorThrottled.cancel(), [sendCursorThrottled]);
 
-  // ---------------------------
+  // -------------------------
   // Editor handlers
-  // ---------------------------
+  // -------------------------
   const handleChange = (value, viewUpdate) => {
-    if (!editorViewRef.current && viewUpdate?.view) {
+    if (!editorViewRef.current && viewUpdate?.view)
       editorViewRef.current = viewUpdate.view;
-    }
     setCode(value);
     saveDocument(value);
 
@@ -407,10 +424,16 @@ export default function CodeEditor() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [code, language]);
 
-  if (loading)
+  if (loading || permission === null)
     return <div className="text-center mt-10 text-gray-400">Loading...</div>;
 
-  // Helper: render a safe display name for chat messages (supports doc or plain object)
+  if (permission === "none")
+    return (
+      <div className="text-center mt-10 text-red-500 text-lg">
+        You do not have permission to access this document.
+      </div>
+    );
+
   const displayName = (m) =>
     typeof m?.user === "string"
       ? m.user
@@ -419,15 +442,16 @@ export default function CodeEditor() {
       : String(m?.user || "User");
 
   return (
-    <div className="w-screen h-screen p-4 bg-gray-900 text-gray-100 flex">
+    <div className="w-screen h-screen p-4 bg-gray-900 text-gray-100 flex relative">
       {/* Left: Editor */}
       <div className="flex-1 flex flex-col space-y-4">
         <input
           className="text-2xl font-bold w-full p-3 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
           value={title}
           onChange={handleTitleChange}
+          readOnly={permission !== "edit"}
         />
-        <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex flex-wrap gap-4 items-center mb-2">
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
@@ -443,13 +467,20 @@ export default function CodeEditor() {
             onClick={runCode}
             disabled={running}
             className={`px-6 py-2 rounded-lg font-semibold transition-colors duration-200
-              ${
-                running
-                  ? "bg-gray-600 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }`}
+          ${
+            running
+              ? "bg-gray-600 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+          }`}
           >
             {running ? "Running..." : "Run Code"}
+          </button>
+
+          <button
+            onClick={() => setShowAccess(!showAccess)}
+            className="px-3 py-2 bg-gray-700 rounded ml-auto"
+          >
+            Manage Access
           </button>
         </div>
 
@@ -463,8 +494,9 @@ export default function CodeEditor() {
               cursorField,
             ]}
             theme={oneDark}
-            onChange={handleChange}
-            onUpdate={handleUpdate}
+            onChange={permission === "edit" ? handleChange : undefined}
+            onUpdate={permission === "edit" ? handleUpdate : undefined}
+            editable={permission === "edit"}
           />
         </div>
 
@@ -512,6 +544,13 @@ export default function CodeEditor() {
           </button>
         </div>
       </div>
+
+      {/* Manage Access overlay */}
+      {showAccess && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 z-50">
+          <ManageAccess docId={docId} onClose={() => setShowAccess(false)} />
+        </div>
+      )}
     </div>
   );
 }

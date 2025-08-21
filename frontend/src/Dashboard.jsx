@@ -7,16 +7,25 @@ export default function Dashboard() {
   const [docs, setDocs] = useState([]);
   const token = localStorage.getItem("token");
 
+  // Store token from URL (OAuth) on first load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromURL = params.get("token");
+    if (tokenFromURL) {
+      localStorage.setItem("token", tokenFromURL);
+      window.history.replaceState({}, document.title, "/dashboard"); // Clean URL
+    }
+  }, []);
+
   // Redirect to login if no token
   useEffect(() => {
     if (!token) navigate("/login");
   }, [token, navigate]);
 
-  // Fetch documents
+  // Fetch user documents
   useEffect(() => {
-    if (!token) return;
-
     const fetchDocs = async () => {
+      if (!token) return;
       try {
         const res = await axios.get("http://localhost:4000/api/docs", {
           headers: { Authorization: `Bearer ${token}` },
@@ -26,11 +35,15 @@ export default function Dashboard() {
         console.error("Error fetching docs:", err);
       }
     };
-
     fetchDocs();
   }, [token]);
 
+  // Create a new document
   const createNewDoc = async () => {
+    if (!token) {
+      alert("You are not authenticated!");
+      return;
+    }
     try {
       const res = await axios.post(
         "http://localhost:4000/api/docs",
@@ -41,6 +54,7 @@ export default function Dashboard() {
       navigate(`/editor/${res.data.docId}`);
     } catch (err) {
       console.error("Error creating doc:", err);
+      alert("Failed to create document. Check console for details.");
     }
   };
 

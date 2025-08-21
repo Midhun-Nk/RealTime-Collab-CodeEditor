@@ -10,6 +10,8 @@ const docRouter = require("./routes/docs");
 const executeRouter = require("./routes/execute");
 const Document = require("./models/Document");
 const ChatMessage = require("./models/ChatMessage");
+const accessRouter = require("./routes/access");
+const userRouter = require("./routes/users");
 
 const app = express();
 app.use(cors());
@@ -25,7 +27,8 @@ mongoose.connect("mongodb://127.0.0.1:27017/realtimeDocs", {
 app.use("/api/execute", executeRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/docs", docRouter);
-
+app.use("/api/access", accessRouter);
+app.use("/api/users", userRouter);
 // Start HTTP server
 const server = app.listen(4000, () =>
   console.log("✅ Server running on http://localhost:4000")
