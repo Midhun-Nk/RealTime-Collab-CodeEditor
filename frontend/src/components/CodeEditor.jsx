@@ -33,6 +33,7 @@ export default function CodeEditor() {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [remoteCursors, setRemoteCursors] = useState({});
+  const [myName, setMyName] = useState("Guest");
 
   const codeRef = useRef(code);
   const titleRef = useRef(title);
@@ -44,9 +45,15 @@ export default function CodeEditor() {
   const myColor = useRef(
     "#" + Math.floor(Math.random() * 16777215).toString(16)
   );
-  const myName = useRef(
-    localStorage.getItem("username") || `Guest-${myId.current.slice(0, 4)}`
-  );
+
+  // -------------------------
+  // Set username from localStorage
+  // -------------------------
+  useEffect(() => {
+    const username = localStorage.getItem("username");
+    if (username) setMyName(username);
+    else setMyName(`Guest-${myId.current.slice(0, 4)}`);
+  }, []);
 
   // -------------------------
   // Redirect if not logged in
@@ -117,7 +124,7 @@ export default function CodeEditor() {
           type: "join",
           docId,
           userId: myId.current,
-          name: myName.current,
+          name: myName,
         })
       );
     };
@@ -150,7 +157,7 @@ export default function CodeEditor() {
     ws.current.onclose = () => console.log("WS disconnected");
 
     return () => ws.current?.close();
-  }, [docId, token, permission]);
+  }, [docId, token, permission, myName]);
 
   // -------------------------
   // Prune stale cursors
@@ -239,7 +246,7 @@ export default function CodeEditor() {
   // -------------------------
   const sendMessage = () => {
     if (!chatInput.trim()) return;
-    const message = { user: myName.current, text: chatInput };
+    const message = { user: myName, text: chatInput };
     ws.current?.send(JSON.stringify({ type: "chat", docId, message }));
     setChatInput("");
   };
@@ -361,12 +368,12 @@ export default function CodeEditor() {
             docId,
             userId: myId.current,
             pos,
-            name: myName.current,
+            name: myName,
             color: myColor.current,
           })
         );
       }, 60),
-    [docId]
+    [docId, myName]
   );
 
   useEffect(() => () => sendCursorThrottled.cancel(), [sendCursorThrottled]);
@@ -429,8 +436,42 @@ export default function CodeEditor() {
 
   if (permission === "none")
     return (
-      <div className="text-center mt-10 text-red-500 text-lg">
-        You do not have permission to access this document.
+      <div className="flex items-center justify-center h-screen bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 px-4">
+        <div className="bg-gray-800 text-gray-100 p-10 rounded-2xl shadow-xl flex flex-col items-center gap-6 max-w-md text-center animate-fadeIn">
+          <svg
+            className="w-16 h-16 text-red-500 animate-bounce"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <h1 className="text-2xl font-bold">Access Denied</h1>
+          <p className="text-gray-300">
+            You do not have permission to access this document. Please contact
+            the document owner or check your account privileges.
+          </p>
+          <div className="flex gap-4 mt-4">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors font-semibold"
+            >
+              Go to Dashboard
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors font-semibold"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
       </div>
     );
 
@@ -511,7 +552,7 @@ export default function CodeEditor() {
         <div className="flex-1 overflow-y-auto mb-2 space-y-2">
           {messages.map((msg, idx) => {
             const name = displayName(msg);
-            const mine = name === myName.current;
+            const mine = name === myName;
             return (
               <div
                 key={idx}
