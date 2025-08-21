@@ -27,7 +27,15 @@ router.get("/", authMiddleware, async (req, res) => {
       owner: { $ne: req.user.id },
     });
 
-    const allDocs = [...ownedDocs, ...sharedDocs];
+    // Convert owner ObjectId to string
+    const allDocs = [
+      ...ownedDocs.map((d) => ({ ...d.toObject(), owner: d.owner.toString() })),
+      ...sharedDocs.map((d) => ({
+        ...d.toObject(),
+        owner: d.owner.toString(),
+      })),
+    ];
+
     res.json(allDocs);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -58,7 +66,8 @@ router.post("/", authMiddleware, async (req, res) => {
     });
     await ownerAccess.save();
 
-    res.json(newDoc);
+    // Convert owner ObjectId to string
+    res.json({ ...newDoc.toObject(), owner: newDoc.owner.toString() });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -82,7 +91,8 @@ router.get("/:docId", authMiddleware, async (req, res) => {
       if (!access) return res.status(403).json({ message: "Access denied" });
     }
 
-    res.json(doc);
+    // Convert owner ObjectId to string
+    res.json({ ...doc.toObject(), owner: doc.owner.toString() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -118,7 +128,8 @@ router.put("/:docId", authMiddleware, async (req, res) => {
     doc.content = content;
     await doc.save();
 
-    res.json(doc);
+    // Convert owner ObjectId to string
+    res.json({ ...doc.toObject(), owner: doc.owner.toString() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -5,14 +5,21 @@ import axios from "axios";
 export default function Dashboard() {
   const navigate = useNavigate();
   const [docs, setDocs] = useState([]);
-  const token = localStorage.getItem("token");
 
-  // Store token from URL (OAuth) on first load
+  // Grab token and userId from localStorage
+  const token = localStorage.getItem("token");
+  const userId = localStorage.getItem("userId");
+
+  // Handle OAuth token from URL (if redirected)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tokenFromURL = params.get("token");
-    if (tokenFromURL) {
-      localStorage.setItem("token", tokenFromURL);
+    const userIdFromURL = params.get("userId");
+
+    if (tokenFromURL) localStorage.setItem("token", tokenFromURL);
+    if (userIdFromURL) localStorage.setItem("userId", userIdFromURL);
+
+    if (tokenFromURL || userIdFromURL) {
       window.history.replaceState({}, document.title, "/dashboard"); // Clean URL
     }
   }, []);
@@ -62,8 +69,14 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("username");
     navigate("/login");
   };
+
+  // Filter documents
+  const ownedDocs = docs.filter((doc) => doc.owner === userId);
+  const sharedDocs = docs.filter((doc) => doc.owner !== userId);
 
   return (
     <div className="w-screen min-h-screen bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-gray-100 p-6">
@@ -107,16 +120,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Documents Section */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-4">Your Documents</h2>
-        {docs.length === 0 ? (
-          <p className="text-gray-400">
-            No documents yet. Click "Create New Code Editor" to get started!
-          </p>
+      {/* Owned Documents */}
+      <section className="mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Owned Documents</h2>
+        {ownedDocs.length === 0 ? (
+          <p className="text-gray-400">You don't own any documents yet.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {docs.map((doc) => (
+            {ownedDocs.map((doc) => (
               <div
                 key={doc.docId}
                 onClick={() => openDoc(doc.docId)}
@@ -127,6 +138,34 @@ export default function Dashboard() {
                 </h3>
                 <p className="text-gray-400 text-sm mb-2">
                   Created on: {new Date(doc.createdAt).toLocaleDateString()}
+                </p>
+                <p className="text-gray-300 text-sm line-clamp-3">
+                  {doc.content || "No content yet. Click to start coding!"}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Shared Documents */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-4">Shared With You</h2>
+        {sharedDocs.length === 0 ? (
+          <p className="text-gray-400">No shared documents yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {sharedDocs.map((doc) => (
+              <div
+                key={doc.docId}
+                onClick={() => openDoc(doc.docId)}
+                className="bg-gray-800 p-5 rounded-xl shadow-lg cursor-pointer hover:bg-gray-700 transform hover:-translate-y-1 hover:scale-105 transition-all"
+              >
+                <h3 className="text-lg font-bold mb-2 text-white">
+                  {doc.title}
+                </h3>
+                <p className="text-gray-400 text-sm mb-2">
+                  Owner: {doc.ownerName || doc.owner}
                 </p>
                 <p className="text-gray-300 text-sm line-clamp-3">
                   {doc.content || "No content yet. Click to start coding!"}

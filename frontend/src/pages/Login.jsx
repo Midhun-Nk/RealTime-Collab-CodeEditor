@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -17,6 +17,7 @@ export default function Login() {
 
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("username", res.data.username);
+      localStorage.setItem("userId", res.data.userId); // STORE userId
 
       navigate("/dashboard", { replace: true });
     } catch (err) {

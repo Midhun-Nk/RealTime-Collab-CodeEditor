@@ -8,7 +8,7 @@ const User = require("../models/User");
 require("dotenv").config();
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret"; // use env var in prod
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret"; // use env var in production
 
 //-----------------------------------
 // Local Register/Login
@@ -24,8 +24,9 @@ router.post("/register", async (req, res) => {
     await user.save();
 
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "1d" });
-    res.json({ token, username: user.username });
+    res.json({ token, username: user.username, userId: user._id.toString() });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -41,14 +42,15 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
 
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "1d" });
-    res.json({ token, username: user.username });
+    res.json({ token, username: user.username, userId: user._id.toString() });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
 //-----------------------------------
-// Passport Config
+// Passport OAuth Config
 //-----------------------------------
 passport.use(
   new GoogleStrategy(
@@ -99,16 +101,13 @@ passport.use(
 );
 
 //-----------------------------------
-// Google Routes
+// OAuth Routes
 //-----------------------------------
 router.get(
   "/google",
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
-//-----------------------------------
-// GitHub Routes
-//-----------------------------------
 router.get(
   "/github",
   passport.authenticate("github", { scope: ["user:email"] })
@@ -122,9 +121,9 @@ router.get(
     const token = jwt.sign({ id: req.user._id }, JWT_SECRET, {
       expiresIn: "1d",
     });
-    const username = encodeURIComponent(req.user.username); // <-- add this
+    const username = encodeURIComponent(req.user.username);
     res.redirect(
-      `http://localhost:5173/oauth/callback?token=${token}&username=${username}`
+      `http://localhost:5173/oauth/callback?token=${token}&username=${username}&userId=${req.user._id.toString()}`
     );
   }
 );
@@ -137,9 +136,9 @@ router.get(
     const token = jwt.sign({ id: req.user._id }, JWT_SECRET, {
       expiresIn: "1d",
     });
-    const username = encodeURIComponent(req.user.username); // <-- add this
+    const username = encodeURIComponent(req.user.username);
     res.redirect(
-      `http://localhost:5173/oauth/callback?token=${token}&username=${username}`
+      `http://localhost:5173/oauth/callback?token=${token}&username=${username}&userId=${req.user._id.toString()}`
     );
   }
 );

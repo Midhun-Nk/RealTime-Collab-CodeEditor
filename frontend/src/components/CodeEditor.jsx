@@ -34,12 +34,14 @@ export default function CodeEditor() {
   const [chatInput, setChatInput] = useState("");
   const [remoteCursors, setRemoteCursors] = useState({});
   const [myName, setMyName] = useState("Guest");
+  const [isOwner, setIsOwner] = useState(false);
 
   const codeRef = useRef(code);
   const titleRef = useRef(title);
   const ws = useRef(null);
   const chatEndRef = useRef(null);
   const editorViewRef = useRef(null);
+  const manageAccessRef = useRef(null);
 
   const myId = useRef(Math.random().toString(36).substr(2, 9));
   const myColor = useRef(
@@ -70,45 +72,67 @@ export default function CodeEditor() {
   }, [title]);
 
   // -------------------------
-  // Fetch user permission
+  // Fetch user permission and document in one call
   // -------------------------
   useEffect(() => {
     if (!token) return;
 
-    const fetchPermission = async () => {
+    const fetchData = async () => {
       try {
-        const res = await axios.get(
+        // Fetch permission
+        const permRes = await axios.get(
           `http://localhost:4000/api/access/${docId}/my-permission`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        setPermission(res.data.permission); // "read", "edit", or "none"
+        const perm = permRes.data.permission; // "edit", "read", or "none"
+        setPermission(perm);
+
+        if (perm !== "none") {
+          // Fetch document
+          const docRes = await axios.get(
+            `http://localhost:4000/api/docs/${docId}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          const doc = docRes.data;
+
+          setCode(doc.content);
+          setTitle(doc.title || "Untitled Document");
+
+          // Check ownership
+          const currentUserId = localStorage.getItem("userId"); // or decode token
+          setIsOwner(doc.owner === currentUserId);
+        }
       } catch (err) {
         console.error(err);
         setPermission("none");
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchPermission();
+    fetchData();
   }, [docId, token]);
 
-  // -------------------------
-  // Fetch document content
-  // -------------------------
   useEffect(() => {
-    if (!token || permission === "none") return;
+    const handleClickOutside = (event) => {
+      if (
+        manageAccessRef.current &&
+        !manageAccessRef.current.contains(event.target)
+      ) {
+        setShowAccess(false);
+      }
+    };
 
-    axios
-      .get(`http://localhost:4000/api/docs/${docId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => {
-        if (res.data) {
-          setCode(res.data.content);
-          setTitle(res.data.title || "Untitled Document");
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [docId, token, permission]);
+    if (showAccess) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showAccess]);
 
   // -------------------------
   // WebSocket setup
@@ -255,7 +279,6 @@ export default function CodeEditor() {
   // Cursor decorations
   // -------------------------
   const setRemoteCursorsEffect = useMemo(() => StateEffect.define(), []);
-
   const toRGBA = (hex, alpha = 0.75) => {
     if (!hex || !/^#?[0-9a-f]{6}$/i.test(hex))
       return `rgba(34,211,238,${alpha})`;
@@ -517,12 +540,14 @@ export default function CodeEditor() {
             {running ? "Running..." : "Run Code"}
           </button>
 
-          <button
-            onClick={() => setShowAccess(!showAccess)}
-            className="px-3 py-2 bg-gray-700 rounded ml-auto"
-          >
-            Manage Access
-          </button>
+          {isOwner && (
+            <button
+              onClick={() => setShowAccess(!showAccess)}
+              className="px-3 py-2 bg-gray-700 rounded ml-auto"
+            >
+              Manage Access
+            </button>
+          )}
         </div>
 
         <div className="flex-1 rounded-lg overflow-hidden border border-gray-700">
@@ -588,7 +613,10 @@ export default function CodeEditor() {
 
       {/* Manage Access overlay */}
       {showAccess && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 z-50">
+        <div
+          ref={manageAccessRef} // Attach the ref here
+          className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 z-50"
+        >
           <ManageAccess docId={docId} onClose={() => setShowAccess(false)} />
         </div>
       )}

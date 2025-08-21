@@ -19,6 +19,7 @@ export default function Register() {
       if (data.token) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("username", data.username);
+        localStorage.setItem("userId", data.userId); // STORE userId
         navigate("/dashboard");
       } else {
         alert("Registration successful! Please login.");
